@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>🎃 Cell Effects Gallery — Standalone</title>
+<style>
+  :root{
+    --dark:#0b0f1a; --dim:#1c2233; --lit:#f7f1c3;
+    --edge:#2a3347; --ui:#0b1220; --text:#e5e7eb;
+    --size:56px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:#0a0d14; color:var(--text);
+       font-family:ui-sans-serif,system-ui,"Noto Color Emoji","Apple Color Emoji","Segoe UI Emoji","Noto Sans",Arial;}
+  header{padding:22px 20px; border-bottom:1px solid #172033; background:#0c1323;}
+  h1{font-size:20px; margin:0 0 6px}
+  .sub{color:#9ca3af; font-size:13px}
+  main{padding:18px 20px; display:grid; gap:22px; max-width:1200px; margin:auto}
+  section{background:#0f172a; border:1px solid #192338; border-radius:14px; overflow:hidden}
+  section header{padding:10px 12px; background:#0b1220; border-bottom:1px solid #192338}
+  section h2{font-size:15px; margin:0}
+  .grid{display:grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap:14px; padding:14px}
+  .card{background:#0b1220; border:1px solid #1f2a40; border-radius:12px; padding:10px; display:flex; gap:10px; align-items:center}
+  .label{font-size:12px; color:#aab2c5}
+  .tile{
+    width:var(--size); height:var(--size);
+    display:grid; place-items:center; position:relative;
+    border:1px solid var(--edge);
+    background:var(--dark);
+    border-radius:8px;
+    transition: box-shadow .12s ease, transform .08s ease, filter .12s ease;
+    user-select:none;
+  }
+  .tile .emoji.center{font-size:28px}
+  .tile .emoji{position:absolute}
+  .tile .tl{top:2px; left:4px; font-size:16px}
+  .tile .tr{top:2px; right:4px; font-size:16px}
+  .tile .bl{bottom:2px; left:4px; font-size:16px}
+  .tile .br{bottom:2px; right:4px; font-size:16px}
+  .dark{ background:var(--dark) } .dim{ background:var(--dim) } .lit{ background:var(--lit); color:#111 }
+  .selected{ box-shadow: inset 0 0 0 3px #f59e0b }
+  .ring{ box-shadow: inset 0 0 0 3px #60a5fa }
+  .glow{ box-shadow: inset 0 0 0 2px rgba(255,255,255,.2), 0 0 14px 5px rgba(255,230,120,.55) }
+  .pattern::before{ content:""; position:absolute; inset:0; opacity:.28; background:repeating-linear-gradient(45deg,#fff3 0 3px,transparent 3px 7px) }
+  .fog::after{ content:""; position:absolute; inset:0; background:rgba(0,0,0,.5) }
+  @keyframes pulse{ 0%,100%{ box-shadow: inset 0 0 0 2px #ef4444 } 50%{ box-shadow: inset 0 0 0 6px #ef4444 } }
+  .pulse{ animation:pulse 1s ease-in-out infinite }
+  @keyframes shake{ 0%,100%{ transform:translate(0,0)} 25%{ transform:translate(1px,0)} 75%{ transform:translate(-1px,0)} }
+  .shake{ animation:shake .25s linear 1 }
+  .ping::after{ content:""; position:absolute; left:50%; top:50%; width:6px; height:6px; border-radius:999px; background:#93c5fd;
+    transform:translate(-50%,-50%); box-shadow:0 0 0 0 rgba(147,197,253,.6); animation: ping 1.2s ease-out infinite }
+  @keyframes ping{ 0%{ box-shadow:0 0 0 0 rgba(147,197,253,.6) } 70%{ box-shadow:0 0 0 18px rgba(147,197,253,0)} 100%{ box-shadow:0 0 0 0 rgba(147,197,253,0)} }
+  .badge::after{ content: attr(data-badge); position:absolute; top:2px; right:2px; min-width:16px; height:16px; padding:0 4px; border-radius:10px; background:#f59e0b; color:#111; font:700 11px/16px ui-sans-serif,system-ui }
+  .ico::before{ content: attr(data-ico); position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:14px }
+  .gray{ filter:grayscale(100%) } .blur{ filter:blur(2px) } .bright{ filter:brightness(1.25) } .dimfx{ filter:brightness(.75) } .huer{ filter:hue-rotate(30deg) }
+  .round{ border-radius:12px } .diamond{ clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%) } .tri{ clip-path: polygon(50% 0%, 0% 100%, 100% 100%) }
+  .caption{font-size:12px; margin-top:6px; color:#9fb1ce}
+  .rowgrid{display:grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap:12px; padding:12px}
+  .item{display:flex; gap:10px; align-items:center}
+</style>
+</head>
+<body>
+<header>
+  <h1>🖼️ Cell Effects Gallery（純展示版）</h1>
+  <div class="sub">這頁面不含任何遊戲或編輯控制，只是把可用的格子級視覺效果逐類展示出來，方便你挑選組合。</div>
+</header>
+<main id="root"></main>
+<script>
+  const root = document.getElementById('root');
+
+  function makeTile(classes=[], base='⬛', overlays={}){
+    const wrap = document.createElement('div');
+    wrap.className = 'item';
+    const tile = document.createElement('div');
+    tile.className = 'tile dark ' + classes.join(' ');
+    const center = document.createElement('div'); center.className='emoji center'; center.textContent = base;
+    tile.appendChild(center);
+    if (overlays.tl){ let el=document.createElement('div'); el.className='emoji tl'; el.textContent=overlays.tl; tile.appendChild(el); }
+    if (overlays.tr){ let el=document.createElement('div'); el.className='emoji tr'; el.textContent=overlays.tr; tile.appendChild(el); }
+    if (overlays.bl){ let el=document.createElement('div'); el.className='emoji bl'; el.textContent=overlays.bl; tile.appendChild(el); }
+    if (overlays.br){ let el=document.createElement('div'); el.className='emoji br'; el.textContent=overlays.br; tile.appendChild(el); }
+    if (classes.includes('badge')) tile.setAttribute('data-badge', overlays.badge || '!');
+    if (classes.includes('ico')) tile.setAttribute('data-ico', overlays.ico || '👁️');
+    if (classes.includes('ping')){ const p=document.createElement('div'); p.className='ping'; tile.appendChild(p); }
+    const label = document.createElement('div');
+    label.className='label';
+    label.textContent = classes.join(' ') || 'base';
+    wrap.appendChild(tile); wrap.appendChild(label);
+    return wrap;
+  }
+
+  function section(title, items){
+    const sec = document.createElement('section');
+    sec.innerHTML = `<header><h2>${title}</h2></header>`;
+    const grid = document.createElement('div'); grid.className='rowgrid';
+    items.forEach(it=> grid.appendChild(it));
+    sec.appendChild(grid);
+    return sec;
+  }
+
+  const base = [
+    makeTile(['dark'], '⬛'),
+    makeTile(['dim'],  '⬛'),
+    makeTile(['lit'],  '⬛'),
+    makeTile(['lit','glow'], '🎃'),
+  ];
+
+  const borders = [
+    makeTile(['selected'], '⬛'),
+    makeTile(['ring'], '⬛'),
+    makeTile(['glow'], '🎃'),
+    makeTile(['selected','ring','glow'], '🎃'),
+  ];
+
+  const patterns = [
+    makeTile(['pattern'], '⬛'),
+    makeTile(['fog'], '⬛'),
+    makeTile(['pattern','fog'], '⬛'),
+  ];
+
+  const anims = [
+    makeTile(['pulse'], '⬛'),
+    makeTile(['shake'], '⬛'),
+    makeTile(['ping'], '⬛'),
+    makeTile(['ring','pulse'], '⬛'),
+  ];
+
+  const filters = [
+    makeTile(['gray'], '🧛‍♂️'),
+    makeTile(['blur'], '🧟‍♀️'),
+    makeTile(['bright'], '🎃'),
+    makeTile(['dimfx'], '⬛'),
+    makeTile(['huer'], '🕷️'),
+  ];
+
+  const shapes = [
+    makeTile(['round'], '⬛'),
+    makeTile(['diamond'], '⬛'),
+    makeTile(['tri'], '⬛'),
+    makeTile(['round','glow'], '🎃'),
+  ];
+
+  const badges = [
+    makeTile(['badge'], '⬛', {badge:'!'}),
+    makeTile(['badge','ico'], '⬛', {badge:'3', ico:'⚠️'}),
+    makeTile(['ico'], '⬛', {ico:'👁️'}),
+  ];
+
+  const stacks = [
+    makeTile([], '🎃', {tl:'🕷️'}),
+    makeTile([], '⬛', {tr:'✨', bl:'🍬'}),
+    makeTile(['glow','badge'], '🧒', {badge:'★', tr:'✨'}),
+    makeTile(['ring','ico'], '🧛‍♂️', {ico:'🔇', br:'💀'}),
+  ];
+
+  root.appendChild(section('🌗 底色 / 明暗', base));
+  root.appendChild(section('🧱 邊框 / 光暈', borders));
+  root.appendChild(section('🧩 圖樣 / 迷霧', patterns));
+  root.appendChild(section('🎞️ 動畫', anims));
+  root.appendChild(section('🎛️ 濾鏡', filters));
+  root.appendChild(section('🔷 形狀', shapes));
+  root.appendChild(section('🏷️ 角標 / 微圖示', badges));
+  root.appendChild(section('🧩 Emoji 疊層示例', stacks));
+</script>
+</body>
+</html>

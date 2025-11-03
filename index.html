@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Shadow Path – Konva 基礎版（Grid / 角色移動 / 牆 / 卷軸 / 外框）</title>
+  <style>
+    body{margin:0;background:#1b1b1b;color:#d8ffd6;font-family:ui-sans-serif,system-ui,"Noto Color Emoji","Apple Color Emoji","Segoe UI Emoji",Arial;display:flex;gap:16px;flex-wrap:wrap;justify-content:center;padding:18px}
+    .panel{background:#0f172a;border:1px solid #1f2937;border-radius:12px;padding:12px;box-shadow:0 8px 20px rgba(0,0,0,.3)}
+    #stage{border:1px solid #20d25a;border-radius:12px;overflow:hidden}
+    kbd{background:#0b1220;border:1px solid #1f2937;border-bottom-width:2px;padding:1px 6px;border-radius:6px}
+    .note{color:#9aa4b2}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/konva@9/konva.min.js"></script>
+</head>
+<body>
+  <div class="panel">
+    <div style="font-weight:600;margin-bottom:6px">Shadow Path – Konva 核心骨架</div>
+    <div class="note">主題：金屬灰底 + 螢光綠線（電路感）。<br/>控制：🥷 方向鍵、👮 WASD。牆體🧱不可通行；📜 為目標。<br/>範例中示範了 drawRegionOutline() 只畫出範圍外框的功能。</div>
+  </div>
+  <div id="stage" class="panel"></div>
+
+<script>
+// ====== 基本設定 ======
+const COLS = 10, ROWS = 10, CELL = 64;
+const STAGE_W = COLS * CELL, STAGE_H = ROWS * CELL;
+
+const COLOR_BG = '#3a3a3a';
+const COLOR_GRID = '#0aa84a';
+const COLOR_GRID_BOLD = '#27ff7e';
+
+const NINJA = '🥷', COP = '👮', WALL = '🧱', SCROLL = '📜';
+
+const walls = [ [2,2],[2,3],[2,4],[6,5],[7,5],[8,5],[5,7],[5,8] ];
+const scrollPos = { x:4, y:6 };
+
+const ninja = { id:'ninja', x:1, y:8, facing:'E', emoji:NINJA, color:'#22d3ee' };
+const cop   = { id:'cop',   x:8, y:1, facing:'S', emoji:COP,   color:'#66ddff' };
+
+const stage = new Konva.Stage({ container:'stage', width:STAGE_W, height:STAGE_H });
+const gridL   = new Konva.Layer({ listening:false });
+const propsL  = new Konva.Layer();
+const unitsL  = new Konva.Layer();
+const overlayL= new Konva.Layer({ listening:false });
+stage.add(gridL, propsL, unitsL, overlayL);
+
+function inBounds(x,y){ return x>=0 && x<COLS && y>=0 && y<ROWS; }
+function cellRect(x,y){ return { x:x*CELL, y:y*CELL, w:CELL, h:CELL }; }
+function isWall(x,y){ return walls.some(([wx,wy])=> wx===x && wy===y); }
+function occupiedByUnit(x,y){ return (x===ninja.x && y===ninja.y) || (x===cop.x && y===cop.y); }
+
+function tryMove(unit, dx, dy){
+  const nx = unit.x + dx, ny = unit.y + dy;
+  if(!inBounds(nx,ny)) return;
+  if(isWall(nx,ny)) return;
+  if(occupiedByUnit(nx,ny)) return;
+  unit.x = nx; unit.y = ny;
+}
+
+function facingToAngle(f){ return f==='E'?0 : f==='S'?90 : f==='W'?180 : -90; }
+
+// ====== 區域外框：僅描繪接壤外部的邊 ======
+function drawRegionOutline(cells, options={}){
+  const color = options.color || '#ff3b3b';
+  const width = options.width || 3;
+  const set = new Set(cells.map(([x,y])=>`${x},${y}`));
+  function has(x,y){ return set.has(`${x},${y}`); }
+  for(const [x,y] of cells){
+    const x0=x*CELL, y0=y*CELL, x1=(x+1)*CELL, y1=(y+1)*CELL;
+    if(!has(x, y-1)) overlayL.add(new Konva.Line({ points:[x0,y0, x1,y0], stroke:color, strokeWidth:width, lineCap:'round' }));
+    if(!has(x+1, y)) overlayL.add(new Konva.Line({ points:[x1,y0, x1,y1], stroke:color, strokeWidth:width, lineCap:'round' }));
+    if(!has(x, y+1)) overlayL.add(new Konva.Line({ points:[x0,y1, x1,y1], stroke:color, strokeWidth:width, lineCap:'round' }));
+    if(!has(x-1, y)) overlayL.add(new Konva.Line({ points:[x0,y0, x0,y1], stroke:color, strokeWidth:width, lineCap:'round' }));
+  }
+  overlayL.batchDraw();
+}
+
+function buildCrossRegion(cx,cy,r=2){
+  const cells=[];
+  for(let dy=-r; dy<=r; dy++){
+    for(let dx=-r; dx<=r; dx++){
+      if(Math.abs(dx)===r && Math.abs(dy)===r) continue; // 去除四角
+      const x=cx+dx, y=cy+dy;
+      if(inBounds(x,y)) cells.push([x,y]);
+    }
+  }
+  return cells;
+}
+
+// ====== 繪製雙方視覺範圍 ======
+function drawAllFOV(){
+  overlayL.destroyChildren();
+  // 警衛範圍（紅）
+  const guardCells = buildCrossRegion(cop.x, cop.y, 2);
+  drawRegionOutline(guardCells, { color:'#ff3b3b', width:2 });
+  // 忍者範圍（青）
+  const ninjaCells = buildCrossRegion(ninja.x, ninja.y, 2);
+  drawRegionOutline(ninjaCells, { color:'#22d3ee', width:2 });
+}
+
+function drawGrid(){
+  gridL.add(new Konva.Rect({ x:0, y:0, width:STAGE_W, height:STAGE_H, fill:COLOR_BG }));
+  for(let r=0;r<=ROWS;r++){
+    gridL.add(new Konva.Line({ points:[0, r*CELL, STAGE_W, r*CELL], stroke:(r%5===0?COLOR_GRID_BOLD:COLOR_GRID), strokeWidth:1 }));
+  }
+  for(let c=0;c<=COLS;c++){
+    gridL.add(new Konva.Line({ points:[c*CELL, 0, c*CELL, STAGE_H], stroke:(c%5===0?COLOR_GRID_BOLD:COLOR_GRID), strokeWidth:1 }));
+  }
+  gridL.draw();
+}
+
+function drawWalls(){
+  walls.forEach(([x,y])=>{
+    const {x:cx,y:cy} = cellRect(x,y);
+    propsL.add(new Konva.Text({ x:cx, y:cy, width:CELL, height:CELL, align:'center', verticalAlign:'middle', text:WALL, fontSize:CELL*0.66 }));
+  });
+}
+
+function drawScroll(){
+  const {x,y} = scrollPos; const {x:cx,y:cy} = cellRect(x,y);
+  propsL.add(new Konva.Text({ x:cx, y:cy, width:CELL, height:CELL, align:'center', verticalAlign:'middle', text:SCROLL, fontSize:CELL*0.6 }));
+}
+
+function makeUnitGroup(u){
+  const g = new Konva.Group({ x:u.x*CELL, y:u.y*CELL, name:'unit', id:u.id });
+  const hit = new Konva.Rect({ width:CELL, height:CELL, opacity:0 });
+  const label = new Konva.Text({ x:0, y:0, width:CELL, height:CELL, align:'center', verticalAlign:'middle', text:u.emoji, fontSize:CELL*0.66 });
+  g.add(hit, label);
+  g.cache();
+  return g;
+}
+
+const ninjaGroup = makeUnitGroup(ninja);
+const copGroup   = makeUnitGroup(cop);
+unitsL.add(ninjaGroup, copGroup);
+
+function updateUnit(u, group){
+  group.position({ x:u.x*CELL, y:u.y*CELL });
+}
+
+drawGrid();
+drawWalls();
+drawScroll();
+propsL.draw();
+unitsL.draw();
+// 初始繪製雙方視覺範圍
+drawAllFOV();
+
+window.addEventListener('keydown', (e)=>{
+  const k = e.key.toLowerCase();
+  let moved = false;
+  if(e.key==='ArrowLeft'){ ninja.facing='W'; tryMove(ninja,-1,0); moved=true; }
+  else if(e.key==='ArrowRight'){ ninja.facing='E'; tryMove(ninja, 1,0); moved=true; }
+  else if(e.key==='ArrowUp'){ ninja.facing='N'; tryMove(ninja,0,-1); moved=true; }
+  else if(e.key==='ArrowDown'){ ninja.facing='S'; tryMove(ninja,0, 1); moved=true; }
+  if(k==='a'){ cop.facing='W'; tryMove(cop,-1,0); moved=true; }
+  else if(k==='d'){ cop.facing='E'; tryMove(cop, 1,0); moved=true; }
+  else if(k==='w'){ cop.facing='N'; tryMove(cop,0,-1); moved=true; }
+  else if(k==='s'){ cop.facing='S'; tryMove(cop,0, 1); moved=true; }
+  if(moved){
+    updateUnit(ninja, ninjaGroup);
+    updateUnit(cop,   copGroup);
+    unitsL.batchDraw();
+    drawAllFOV();
+  }
+});
+</script>
+</body>
+</html>
