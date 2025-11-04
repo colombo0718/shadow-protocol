@@ -5,11 +5,51 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Shadow Path – Konva 基礎版（Grid / 角色移動 / 牆 / 卷軸 / 外框）</title>
   <style>
-    body{margin:0;background:#1b1b1b;color:#d8ffd6;font-family:ui-sans-serif,system-ui,"Noto Color Emoji","Apple Color Emoji","Segoe UI Emoji",Arial;display:flex;gap:16px;flex-wrap:wrap;justify-content:center;padding:18px}
-    .panel{background:#0f172a;border:1px solid #1f2937;border-radius:12px;padding:12px;box-shadow:0 8px 20px rgba(0,0,0,.3)}
-    #stage{border:1px solid #20d25a;border-radius:12px;overflow:hidden}
-    kbd{background:#0b1220;border:1px solid #1f2937;border-bottom-width:2px;padding:1px 6px;border-radius:6px}
-    .note{color:#9aa4b2}
+/* === 頁面整體設定 === */
+body {
+  margin: 0; /* 移除預設外距，讓畫面頂滿視窗 */
+  background: #1b1b1b; /* 整體背景為深灰色（黑綠調） */
+  color: #d8ffd6; /* 預設文字顏色為淡螢光綠 */
+  font-family: ui-sans-serif, system-ui, "Noto Color Emoji", 
+               "Apple Color Emoji", "Segoe UI Emoji", Arial; 
+  /* 使用系統無襯線字型，支援 emoji 顯示 */
+
+  display: flex;           /* 使用 flex 排版，方便橫向排列面板 */
+  gap: 16px;               /* 各面板之間間距 16px */
+  flex-wrap: wrap;         /* 自動換行，避免視窗太窄時擠出畫面 */
+  justify-content: center; /* 內容置中對齊 */
+  padding: 18px;           /* 頁面內邊距 */
+}
+
+/* === 面板通用樣式 === */
+.panel {
+  background: #0f172a;               /* 深藍底色，類似夜色電路感 */
+  border: 1px solid #1f2937;         /* 外框顏色較淺，形成邊界 */
+  border-radius: 12px;               /* 圓角邊框 */
+  padding: 12px;                     /* 內距，讓內容不緊貼邊界 */
+  box-shadow: 0 8px 20px rgba(0,0,0,.3); /* 下方陰影，增立體感 */
+}
+
+/* === Konva 畫布舞台容器 === */
+#stage {
+  border: 1px solid #20d25a; /* 使用螢光綠邊框呼應遊戲主題色 */
+  border-radius: 12px;       /* 與面板一致的圓角 */
+  overflow: hidden;          /* 隱藏超出範圍的繪圖內容 */
+}
+
+/* === 鍵盤提示文字（kbd 元素） === */
+kbd {
+  background: #0b1220;         /* 鍵帽背景：深藍黑 */
+  border: 1px solid #1f2937;   /* 邊框顏色同 panel，略顯立體 */
+  border-bottom-width: 2px;    /* 底邊略厚，模擬鍵帽陰影 */
+  padding: 1px 6px;            /* 內距讓文字不貼邊 */
+  border-radius: 6px;          /* 圓角邊框 */
+}
+
+/* === 次要文字（註解、說明用） === */
+.note {
+  color: #9aa4b2; /* 淺灰藍色，用於輔助說明文字 */
+}
   </style>
   <script src="https://cdn.jsdelivr.net/npm/konva@9/konva.min.js"></script>
 </head>
@@ -22,10 +62,10 @@
 
 <script>
 // ====== 基本設定 ======
-const COLS = 10, ROWS = 10, CELL = 64;
+const COLS = 20, ROWS = 20, CELL = 40;
 const STAGE_W = COLS * CELL, STAGE_H = ROWS * CELL;
 
-const COLOR_BG = '#3a3a3a';
+const COLOR_BG = '#444';
 const COLOR_GRID = '#0aa84a';
 const COLOR_GRID_BOLD = '#27ff7e';
 
@@ -34,8 +74,9 @@ const NINJA = '🥷', COP = '👮', WALL = '🧱', SCROLL = '📜';
 const walls = [ [2,2],[2,3],[2,4],[6,5],[7,5],[8,5],[5,7],[5,8] ];
 const scrollPos = { x:4, y:6 };
 
-const ninja = { id:'ninja', x:1, y:8, facing:'E', emoji:NINJA, color:'#22d3ee' };
-const cop   = { id:'cop',   x:8, y:1, facing:'S', emoji:COP,   color:'#66ddff' };
+// === 角色初始設定（使用 r 代表朝向） ===
+const ninja = { id:'ninja', x:1, y:8, r:0, emoji:NINJA, color:'#0ff' };
+const cop   = { id:'cop',   x:8, y:1, r:0, emoji:COP,   color:'#f0f' };
 
 const stage = new Konva.Stage({ container:'stage', width:STAGE_W, height:STAGE_H });
 const gridL   = new Konva.Layer({ listening:false });
@@ -87,15 +128,184 @@ function buildCrossRegion(cx,cy,r=2){
   return cells;
 }
 
+
+
+let hoverRect = null;
+let selectRect = null;
+
+// 取得格座標
+function getCellFromPointer(pos){
+  const x = Math.floor(pos.x / CELL);
+  const y = Math.floor(pos.y / CELL);
+  return {x, y};
+}
+
+// 滑鼠移動
+stage.on('mousemove', (e)=>{
+  const pos = stage.getPointerPosition();
+  const {x, y} = getCellFromPointer(pos);
+
+  if (!inBounds(x,y)) return;
+
+  // 若還沒建立 hoverRect 就建一個
+  if (!hoverRect){
+    hoverRect = new Konva.Rect({
+      stroke: '#ff0',
+      strokeWidth: 2,
+      width: CELL, height: CELL,
+      listening: false
+    });
+    overlayL.add(hoverRect);
+  }
+
+  hoverRect.position({x: x*CELL, y: y*CELL});
+  overlayL.batchDraw();
+});
+
+// 點選格子
+stage.on('click', (e)=>{
+  const pos = stage.getPointerPosition();
+  const {x, y} = getCellFromPointer(pos);
+
+  if (!inBounds(x,y)) return;
+
+  // 如果沒有 selectRect 就建立
+  if (!selectRect){
+    selectRect = new Konva.Rect({
+      stroke: '#ff0',
+      strokeWidth: 3,
+      shadowColor: '#ff0',
+      cornerRadius: 3,       // 可選：圓角
+      shadowBlur: 8,
+      shadowOpacity: 0.8,
+      width: CELL, height: CELL,
+      listening: false
+    });
+    overlayL.add(selectRect);
+  }
+
+  selectRect.position({x: x*CELL, y: y*CELL});
+  overlayL.batchDraw();
+});
+
+
+// 暗幕層（最上層），底下一切會變暗
+const darknessL = new Konva.Layer({ listening:false });
+const darkRect = new Konva.Rect({
+  x:0, y:0, width: STAGE_W, height: STAGE_H,
+  fill: 'rgba(0,0,0,0.2)', listening:false
+});
+darknessL.add(darkRect);
+stage.add(darknessL);
+
+// 可選：亮區柔光層（在暗幕上方）
+const glowL = new Konva.Layer({ listening:false });
+stage.add(glowL);
+
+function drawLighting(litCells){
+  // 清掉舊孔洞
+  darknessL.find('.hole').forEach(n => n.destroy());
+  glowL.destroyChildren();
+
+  // 1) 暗幕上挖孔（一定要有 fill 才會真正畫像素）
+  for (const [x, y] of litCells){
+    const hole = new Konva.Rect({
+      x: x * CELL,
+      y: y * CELL,
+      width: CELL,
+      height: CELL,
+      // cornerRadius: 10,
+      fill: 'black',                      // ← 加上這行（顏色無所謂）
+      globalCompositeOperation: 'destination-out',
+      name: 'hole',
+      listening: false
+    });
+    darknessL.add(hole);
+  }
+  darknessL.batchDraw();
+
+  // 2) 可選：亮區柔光（在暗幕上方的 glowL）
+  for (const [x, y] of litCells){
+    glowL.add(new Konva.Rect({
+      x: x * CELL,
+      y: y * CELL,
+      width: CELL,
+      height: CELL,
+      fill: 'rgba(255,255,255,.2)',
+      listening: false
+    }));
+  }
+
+  // for (const [x, y] of litCells){
+  //   glowL.add(new Konva.Rect({
+  //     x: x * CELL,
+  //     y: y * CELL,
+  //     width: CELL,
+  //     height: CELL,
+  //     listening: false,
+  //     // === 放射漸層設定 ===
+  //     fillRadialGradientStartPoint: { x: CELL/2, y: CELL/2 },
+  //     fillRadialGradientStartRadius: 0,
+  //     fillRadialGradientEndPoint: { x: CELL/2, y: CELL/2 },
+  //     fillRadialGradientEndRadius: CELL  ,  // 光暈範圍，可調 0.6~1.0
+  //     fillRadialGradientColorStops: [
+  //       0.0, 'rgba(255,255,150,0.0)',   // 中心強光
+  //       0.8, 'rgba(255,255,150,0.3)',  // 中間柔
+  //       1.0, 'rgba(255,255,255,1.0)'    // 邊緣透明
+  //     ]
+  //   }));
+  // }
+  glowL.batchDraw();
+}
+
+
+// === 測試幾個亮格（在警衛附近） ===
+const litCells = [
+  [2,2],[3,3],[3,2],[2,3],
+  [cop.x, cop.y],           // 自己那格
+  [cop.x+1, cop.y],         // 右邊
+  [cop.x, cop.y+1],         // 下邊
+  [cop.x-1, cop.y],         // 左邊
+  [cop.x, cop.y-1],         // 上邊
+  [cop.x+1, cop.y+1]        // 右下角
+];
+
+// 執行測試
+drawLighting(litCells);
+
 // ====== 繪製雙方視覺範圍 ======
 function drawAllFOV(){
   overlayL.destroyChildren();
-  // 警衛範圍（紅）
-  const guardCells = buildCrossRegion(cop.x, cop.y, 2);
-  drawRegionOutline(guardCells, { color:'#ff3b3b', width:2 });
-  // 忍者範圍（青）
-  const ninjaCells = buildCrossRegion(ninja.x, ninja.y, 2);
-  drawRegionOutline(ninjaCells, { color:'#22d3ee', width:2 });
+
+  // === 警衛 FOV（紅色） ===
+  const guardCells = computeFOVHard(
+    cop.x,       // 中心 x
+    cop.y,       // 中心 y
+    cop.r,       // 面向方向 r (0~7)
+    90,          // 視野夾角 (例：90°)
+    4,           // 視距 (可依角色調整)
+    {
+      isBlocked: (x,y) => isWall(x,y) || occupiedByUnit(x,y),
+      includeOpaqueCell: true,
+      includeStart: false
+    }
+  );
+  drawRegionOutline(guardCells, { color:'#f0f', width:1.5 });
+
+  // === 忍者 FOV（青色） ===
+  const ninjaCells = computeFOVHard(
+    ninja.x,
+    ninja.y,
+    ninja.r,
+    45,
+    6,
+    {
+      isBlocked: (x,y) => isWall(x,y) || occupiedByUnit(x,y),
+      includeOpaqueCell: true,
+      includeStart: false
+    }
+  );
+  drawRegionOutline(ninjaCells, { color:'#0ff', width:1.5 });
 }
 
 function drawGrid(){
@@ -123,9 +333,26 @@ function drawScroll(){
 
 function makeUnitGroup(u){
   const g = new Konva.Group({ x:u.x*CELL, y:u.y*CELL, name:'unit', id:u.id });
+    // ★ 粗框（跟隨框）：放在 group 內，永遠跟著角色
+  console.log(u.color)
+  const followFrame = new Konva.Rect({
+    x: 0,
+    y: 0,
+    width: CELL,
+    height: CELL,
+    stroke: u.color,       // 用角色色或隊伍色
+    strokeWidth: 3,      // 粗一點
+    cornerRadius: 3,       // 可選：圓角
+    listening: false,      // 不吃事件
+    shadowColor: u.color,  // 可選：做點光暈
+    shadowBlur: 4,
+    shadowOpacity: 0.6
+  });
+
   const hit = new Konva.Rect({ width:CELL, height:CELL, opacity:0 });
   const label = new Konva.Text({ x:0, y:0, width:CELL, height:CELL, align:'center', verticalAlign:'middle', text:u.emoji, fontSize:CELL*0.66 });
-  g.add(hit, label);
+  g.add(followFrame,hit, label);
+
   g.cache();
   return g;
 }
@@ -149,14 +376,43 @@ drawAllFOV();
 window.addEventListener('keydown', (e)=>{
   const k = e.key.toLowerCase();
   let moved = false;
-  if(e.key==='ArrowLeft'){ ninja.facing='W'; tryMove(ninja,-1,0); moved=true; }
-  else if(e.key==='ArrowRight'){ ninja.facing='E'; tryMove(ninja, 1,0); moved=true; }
-  else if(e.key==='ArrowUp'){ ninja.facing='N'; tryMove(ninja,0,-1); moved=true; }
-  else if(e.key==='ArrowDown'){ ninja.facing='S'; tryMove(ninja,0, 1); moved=true; }
-  if(k==='a'){ cop.facing='W'; tryMove(cop,-1,0); moved=true; }
-  else if(k==='d'){ cop.facing='E'; tryMove(cop, 1,0); moved=true; }
-  else if(k==='w'){ cop.facing='N'; tryMove(cop,0,-1); moved=true; }
-  else if(k==='s'){ cop.facing='S'; tryMove(cop,0, 1); moved=true; }
+
+// === 忍者（方向鍵控制） ===
+if (e.key === 'ArrowLeft') {
+  ninja.r = 4;                     // W (左)
+  tryMove(ninja, -1, 0); moved = true;
+}
+else if (e.key === 'ArrowRight') {
+  ninja.r = 0;                     // E (右)
+  tryMove(ninja,  1, 0); moved = true;
+}
+else if (e.key === 'ArrowUp') {
+  ninja.r = 6;                     // N (上)
+  tryMove(ninja,  0,-1); moved = true;
+}
+else if (e.key === 'ArrowDown') {
+  ninja.r = 2;                     // S (下)
+  tryMove(ninja,  0, 1); moved = true;
+}
+
+// === 守衛（WASD 控制） ===
+if (k === 'a') {
+  cop.r = 4;                       // W (左)
+  tryMove(cop, -1, 0); moved = true;
+}
+else if (k === 'd') {
+  cop.r = 0;                       // E (右)
+  tryMove(cop,  1, 0); moved = true;
+}
+else if (k === 'w') {
+  cop.r = 6;                       // N (上)
+  tryMove(cop,  0,-1); moved = true;
+}
+else if (k === 's') {
+  cop.r = 2;                       // S (下)
+  tryMove(cop,  0, 1); moved = true;
+}
+
   if(moved){
     updateUnit(ninja, ninjaGroup);
     updateUnit(cop,   copGroup);
@@ -164,6 +420,99 @@ window.addEventListener('keydown', (e)=>{
     drawAllFOV();
   }
 });
+
+
+// ---- 角度工具 ----
+const DEG2RAD = Math.PI / 180;
+function normAngleRad(a){ return Math.atan2(Math.sin(a), Math.cos(a)); }
+
+// ---- 起點->終點的整數格路徑（不含起點，含終點）----
+function lineCells(x0, y0, x1, y1){
+  const cells = [];
+  let dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+  let dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+  let err = dx + dy, x = x0, y = y0;
+  while (true){
+    if (!(x === x0 && y === y0)) cells.push([x, y]);
+    if (x === x1 && y === y1) break;
+    const e2 = 2 * err;
+    if (e2 >= dy){ err += dy; x += sx; }
+    if (e2 <= dx){ err += dx; y += sy; }
+  }
+  return cells;
+}
+
+/**
+ * 硬遮蔽 FOV（扇形 + 視線，無軟遮蔽）
+ * r 定義：r=0→(1,0) 右/E；r=2→(0,1) 下/S；r=4→(-1,0) 左/W；r=6→(0,-1) 上/N
+ * @param {number} cx     角色 x
+ * @param {number} cy     角色 y
+ * @param {number} cr     朝向 r ∈ [0..7]（每步 45°，角度 = r*45°）
+ * @param {number} angleDeg   扇形夾角（例：90、120、180）
+ * @param {number} radius     視距（格）
+ * @param {object} opts
+ *  - isBlocked(x,y): boolean     // 該格是否為遮蔽物（牆、人、煙霧…）
+ *  - includeOpaqueCell: boolean  // 撞到的「第一個遮蔽物格」是否算可見（預設 true）
+ *  - includeStart: boolean       // 是否包含自己所在格（預設 false）
+ * @returns {[number,number][]    可見格清單
+ */
+function computeFOVHard(cx, cy, cr, angleDeg, radius, opts = {}){
+  const {
+    isBlocked = (x,y)=> isWall(x,y) || occupiedByUnit(x,y),
+    includeOpaqueCell = true,
+    includeStart = false
+  } = opts;
+
+  const DEG2RAD = Math.PI / 180;
+
+  // 角度系統：0° 向右、90° 向下 —— 與 r 的定義對齊
+  const facingRad = (cr * 45) * DEG2RAD;
+  const halfAngle = (angleDeg * DEG2RAD) / 2;
+  const EPS = 1e-9;
+
+  const out = [];
+  const seen = new Set();
+
+  // 以半徑方框掃描候選格
+  for (let y = cy - radius; y <= cy + radius; y++){
+    for (let x = cx - radius; x <= cx + radius; x++){
+      if (!inBounds(x, y)) continue;
+      if (!includeStart && x === cx && y === cy) continue;
+
+      // —— 以「格中心」計向量與距離，避免左右不對稱 —— //
+      const dx = (x + 0.5) - (cx + 0.5);
+      const dy = (y + 0.5) - (cy + 0.5);
+      const dist = Math.hypot(dx, dy);
+      if (dist === 0 || dist-.3 > radius + EPS) continue;
+
+      // 扇形角度篩選（含微小容差）
+      const theta = Math.atan2(dy, dx);          // 0=右，+90°=下
+      const diff  = Math.abs(normAngleRad(theta - facingRad));
+      if (diff > halfAngle + EPS) continue;
+
+      // 視線逐格（Bresenham）
+      const path = lineCells(cx, cy, x, y);
+      let blocked = false;
+      for (let i = 0; i < path.length; i++){
+        const [px, py] = path[i];
+        if (isBlocked(px, py)){
+          if (includeOpaqueCell){
+            const key = `${px},${py}`;
+            if (!seen.has(key)){ seen.add(key); out.push([px, py]); }
+          }
+          blocked = true;
+          break;
+        }
+      }
+
+      if (!blocked){
+        const key = `${x},${y}`;
+        if (!seen.has(key)){ seen.add(key); out.push([x, y]); }
+      }
+    }
+  }
+  return out;
+}
 </script>
 </body>
 </html>
