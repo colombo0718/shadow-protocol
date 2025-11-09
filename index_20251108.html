@@ -51,30 +51,8 @@ kbd {
 .note {
   color: #9aa4b2; /* 淺灰藍色，用於輔助說明文字 */
 }
-
-
-    /* 右側 Blockly 面板 */
-    #blocklyDiv {
-      width: 480px;
-      height: calc(100vh - 32px);
-      margin: 16px 16px 16px 0;
-      border: 1px solid #0f0;
-      /* border-radius: 12px; */
-      background: #000;
-    }
-
-    /* Blockly 主題調整 */
-    .blocklyMainBackground { fill: #000000 !important; }
-    .blocklyMutatorBackground { fill: #000000 !important; }
-    .blocklyFlyoutBackground { fill: #111 !important; }
-    .blocklyPath { fill: #000 !important; stroke-width: 2px; }
-    .blocklyText { fill: #fff !important; }
-    .blocklyFlyoutLabelText { fill: #0f0 !important; }
-    .blocklyScrollbarHandle { fill: #0f0 !important; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/konva@9/konva.min.js"></script>
-  <script src="https://unpkg.com/blockly/blockly.min.js"></script>
-
 </head>
 <body>
   <!-- <div class="panel">
@@ -82,46 +60,10 @@ kbd {
     <div class="note">主題：金屬灰底 + 螢光綠線（電路感）。<br/>控制：🥷 方向鍵、👮 WASD。牆體🧱不可通行；📜 為目標。<br/>範例中示範了 drawRegionOutline() 只畫出範圍外框的功能。</div>
   </div> -->
   <div id="stage" class="panel"></div>
-  <div id="blocklyDiv"></div>
+
 <script>
-  // ====== 建立 Blockly 工作區 ======
-  const toolbox = {
-    "kind": "flyoutToolbox",
-    "contents": [
-      { kind: "block", type: "controls_repeat_ext" },
-      { kind: "block", type: "controls_if" },
-      { kind: "block", type: "logic_compare" },
-      { kind: "block", type: "logic_operation" },
-      { kind: "block", type: "logic_boolean" },
-      { kind: "block", type: "math_number" },
-      { kind: "block", type: "math_arithmetic" },
-      { kind: "block", type: "math_random_int" },
-      { kind: "block", type: "text" },
-      { kind: "block", type: "text_print" },
-      { kind: "block", type: "variables_get" },
-      { kind: "block", type: "variables_set" },
-      { kind: "block", type: "procedures_defnoreturn" }
-    ]
-  };
-
-  Blockly.utils.colour.setHsvSaturation(1);
-  Blockly.utils.colour.setHsvValue(1);
-  const workspace = Blockly.inject('blocklyDiv', {
-    toolbox: toolbox,
-    renderer: 'thrasos',
-    zoom: {
-      controls: false,  // 🔒 關閉右下角縮放按鈕
-      wheel: false,     // 🔒 關閉滑鼠滾輪縮放
-      startScale: .8,  // 固定初始縮放比例
-      maxScale: 1.0,    // 不可放大
-      minScale: 1.0     // 不可縮小
-    },
-    trashcan: true
-  });
-
-
 // ====== 基本設定 ======
-const COLS = 20, ROWS = 15  , CELL = 40;
+const COLS = 20, ROWS = 15  , CELL = 30;
 const STAGE_W = COLS * CELL, STAGE_H = ROWS * CELL;
 
 const COLOR_BG = '#444';

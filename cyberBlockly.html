@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Minimal Blockly Test</title>
+  <script src="https://unpkg.com/blockly/blockly.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+        /* Workspace & Flyout 底色 */
+    .blocklyMainBackground { fill: #000000 !important; }
+    .blocklyMutatorBackground { fill: #000000 !important; }
+    .blocklyFlyoutBackground { fill: #222222 !important; }
+
+    #blocklyDiv {
+      width: 80vw;
+      height: 80vh;
+      border: 2px solid #0f0;
+      /*box-shadow: 0 0 25px #00ff66;*/
+    }
+
+    /*.blocklyDropdownField .blocklyEditableField{*/
+    /*  fill: #000;*/
+    /*  stroke-width: 2px;*/
+    /*}*/
+
+    /* ✳️ 只加這一行：黑底＋粗外框 */
+    .blocklyPath {
+      fill: #000;
+      stroke-width: 2px;
+    }
+    .blocklyOutlinePath {
+      stroke="#ffffff";
+      stroke-width: 4px;
+      fill: #000000;
+    }
+  </style>
+</head>
+<body>
+  <div id="blocklyDiv"></div>
+  
+  
+
+  <script>
+    // 🧩 內建 toolbox，只放一個「重複」積木
+    const toolbox = {
+      "kind": "flyoutToolbox",
+      "contents": [
+        // 控制
+        { kind: "block", type: "controls_repeat_ext" },
+        { kind: "block", type: "controls_if" },
+
+        // 邏輯
+        { kind: "block", type: "logic_compare" },
+        { kind: "block", type: "logic_operation" },
+        { kind: "block", type: "logic_boolean" },
+
+        // 數學
+        { kind: "block", type: "math_number" },
+        { kind: "block", type: "math_arithmetic" },
+        { kind: "block", type: "math_random_int" },
+
+        // 文字
+        { kind: "block", type: "text" },
+        { kind: "block", type: "text_print" },
+
+
+        // 變數
+        { kind: "block", type: "variables_get" },
+        { kind: "block", type: "variables_set" },
+
+        // 函式
+        { kind: "block", type: "procedures_defnoreturn" }
+      ]
+    };
+
+
+  Blockly.utils.colour.setHsvSaturation(1) // 0 (inclusive) to 1 (exclusive), defaulting to 0.45
+  Blockly.utils.colour.setHsvValue(1) // 0 (inclusive) to 1 (exclusive), defaulting to 0.65
+    // 建立 Blockly workspace
+    Blockly.inject('blocklyDiv', {
+      toolbox: toolbox,
+      renderer: 'thrasos', // 可改為 'geras'、'thrasos'、'zelos'
+      zoom: { controls: true, wheel: true },
+      trashcan: true
+    });
+  </script>
+</body>
+</html>
