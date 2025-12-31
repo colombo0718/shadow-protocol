@@ -7,35 +7,82 @@
   <title>Shadow Protocol </title>
   <style>
 /* === 頁面整體設定 === */
-body {
-  margin: 0; /* 移除預設外距，讓畫面頂滿視窗 */
-  background: #1b1b1b; /* 整體背景為深灰色（黑綠調） */
-  color: #d8ffd6; /* 預設文字顏色為淡螢光綠 */
-  font-family: ui-sans-serif, system-ui, "Noto Color Emoji", 
-               "Apple Color Emoji", "Segoe UI Emoji", Arial; 
-  /* 使用系統無襯線字型，支援 emoji 顯示 */
+/* === 頁面整體設定（Grid 三欄）=== */
+body{
+  margin:0;
+  background:#1b1b1b;
+  color:#d8ffd6;
+  font-family: ui-sans-serif, system-ui, "Noto Color Emoji","Apple Color Emoji","Segoe UI Emoji", Arial;
 
-  display: flex;           /* 使用 flex 排版，方便橫向排列面板 */
-  gap: 16px;               /* 各面板之間間距 16px */
-  flex-wrap: wrap;         /* 自動換行，避免視窗太窄時擠出畫面 */
-  justify-content: center; /* 內容置中對齊 */
-  padding: 18px;           /* 頁面內邊距 */
+  /* 這三行是關鍵：三欄 Grid */
+  display:grid;
+  grid-template-columns: 260px 1fr 480px;  /* 左固定｜中自適應｜右固定 */
+  grid-template-rows: 1fr;
+  gap:10px;
+
+  height:calc(100vh - 22px);
+  padding:10px;
 }
 
+/* 中欄：上面高度依舞台內容自動、下面吃滿 */
+.center{
+  display:grid;
+  grid-template-rows: auto 1fr auto; /* 上舞台 auto | 中 terminal 吃滿 | 下按鍵 auto */
+  min-width:0; 
+  min-height:0;
+  gap:10px;
+}
+
+
+/* 讓終端可捲動、可吃滿 */
+#terminal{
+  background:#0f1928;
+  border:1px solid #1aff82;
+  min-height:160px; 
+  overflow:auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+
+/* Keypad 橫排自動換行 */
+.keypad{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
 /* === 面板通用樣式 === */
 .panel {
   background: #0f172a;               /* 深藍底色，類似夜色電路感 */
   border: 1px solid #1f2937;         /* 外框顏色較淺，形成邊界 */
-  border-radius: 12px;               /* 圓角邊框 */
-  padding: 12px;                     /* 內距，讓內容不緊貼邊界 */
+  padding: 12px;                     
   box-shadow: 0 8px 20px rgba(0,0,0,.3); /* 下方陰影，增立體感 */
+  border: 1px solid #0f0;
 }
+
+/* 左側控制面板樣式 */
+.side{
+  /* width: 260px; */
+  min-height: 140px;
+  border: 1px solid #0f0;
+  background: #0b1220;
+  color: #d8ffd6;
+}
+
+
+
+
 
 /* === Konva 畫布舞台容器 === */
 #stage {
-  border: 1px solid #20d25a; /* 使用螢光綠邊框呼應遊戲主題色 */
-  border-radius: 12px;       /* 與面板一致的圓角 */
-  overflow: hidden;          /* 隱藏超出範圍的繪圖內容 */
+  display: flex;
+  justify-content: center;   /* 水平置中 */
+  align-items: flex-start;    /* 或 center：垂直也置中 */
+  border: 1px solid #0f0; /* 使用螢光綠邊框呼應遊戲主題色 */
+}
+
+/* 有些瀏覽器會幫 konva 內層撐滿寬，保險起見限制一下 */
+#stage > .konvajs-content{
+  max-width: 100%;
 }
 
 /* === 鍵盤提示文字（kbd 元素） === */
@@ -47,6 +94,46 @@ kbd {
   border-radius: 6px;          /* 圓角邊框 */
 }
 
+
+/* 統一 keycap 風格  */
+.keycap{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:32px; height:32px;              /* 調整鍵帽大小 */
+  border-radius:9px;                     /* 圓角 */
+  background:#ffffff;                    /* 統一底色 */
+  color:#000000;                         /* 字色 */
+  border:1px solid #15c15c99;            /* 霓虹邊框 */
+  box-shadow:0 0 0 1px rgba(21,193,92,.25) inset;
+  font-weight:700;
+  font-family: ui-sans-serif, "Noto Color Emoji", "Segoe UI Emoji", system-ui;
+  line-height:1; letter-spacing:.5px;
+}
+
+
+/* 游標變手、增加過渡 */
+.keycap{
+  cursor:pointer;
+  transition: border-color .12s ease, box-shadow .12s ease, transform .06s ease;
+}
+
+/* 通用：hover 外框更亮、霓虹更明顯 */
+.keycap:hover{
+  border-color:#19e06f; /* 比 #15c15c 更亮一階 */
+  box-shadow:
+    0 0 0 2px rgba(21,193,92,.50) inset,
+    0 0 10px rgba(21,193,92,.35);
+}
+
+/* 按下手感 */
+.keycap:active{
+  transform: translateY(1px);
+  box-shadow:
+    0 0 0 2px rgba(21,193,92,.65) inset,
+    0 0 6px rgba(21,193,92,.28);
+}
+
 /* === 次要文字（註解、說明用） === */
 .note {
   color: #9aa4b2; /* 淺灰藍色，用於輔助說明文字 */
@@ -55,9 +142,9 @@ kbd {
 
     /* 右側 Blockly 面板 */
     #blocklyDiv {
-      width: 480px;
-      height: calc(100vh - 32px);
-      margin: 16px 16px 16px 0;
+      /* width: 480px; */
+      /* height: calc(100vh - 32px); */
+      /* margin: 16px 16px 16px 0; */
       border: 1px solid #0f0;
       /* border-radius: 12px; */
       background: #000;
@@ -71,6 +158,21 @@ kbd {
     .blocklyText { fill: #fff !important; }
     .blocklyFlyoutLabelText { fill: #0f0 !important; }
     .blocklyScrollbarHandle { fill: #0f0 !important; }
+
+
+    /* 平板：縮小右欄寬度（可選） */
+@media (max-width: 1024px){
+  body{ grid-template-columns: 240px 1fr 380px; }
+}
+
+/* 手機：只留中欄；左右欄先隱藏 */
+@media (max-width: 768px){
+  body{
+    grid-template-columns: 1fr;   /* 單欄 */
+    grid-template-rows: 1fr;
+  }
+  .side, #blocklyDiv{ display:none; }
+}
   </style>
   <script src="https://cdn.jsdelivr.net/npm/konva@9/konva.min.js"></script>
   <script src="https://unpkg.com/blockly/blockly.min.js"></script>
@@ -81,8 +183,43 @@ kbd {
     <div style="font-weight:600;margin-bottom:6px">Shadow Path – Konva 核心骨架</div>
     <div class="note">主題：金屬灰底 + 螢光綠線（電路感）。<br/>控制：🥷 方向鍵、👮 WASD。牆體🧱不可通行；📜 為目標。<br/>範例中示範了 drawRegionOutline() 只畫出範圍外框的功能。</div>
   </div> -->
+
+  <div class="panel side">
+    <div style="font-weight:600;margin-bottom:8px">⚙️ 地圖設定</div>
+    <label style="display:block;margin:6px 0 4px">Cell 大小：<span id="cellVal">25</span> px</label>
+    <input id="cellSlider" type="range" min="16" max="64" step="1" value="25" style="width:220px">
+  </div>
+
+<div class="center"> 
   <div id="stage" class="panel"></div>
+
+    <!-- Terminal -->
+    <div id="terminal" class="panel" >
+        >_
+    </div>
+
+
+
+    <div class="panel keypad" >
+    <!-- 方向鍵（深色帽） -->
+    <button data-insert="up"    aria-label="up"    class="keycap dark">↑</button>
+    <button data-insert="left"  aria-label="left"  class="keycap dark">←</button>
+    <button data-insert="right" aria-label="right" class="keycap dark">→</button>
+    <button data-insert="down"  aria-label="down"  class="keycap dark">↓</button>
+
+    <!-- 動作鍵（統一底、不同微光色） -->
+    <button data-insert="x"        aria-label="circle"   class="keycap x">X</button>
+    <button data-insert="y"        aria-label="cross"    class="keycap y">Y</button>
+    <button data-insert="a"   aria-label="square"   class="keycap a">A</button>
+    <button data-insert="b" aria-label="triangle" class="keycap b">B</button>
+
+    <!-- Delete / Enter（長條） -->
+    <button id="termDelete" aria-label="delete" class="keycap long">⌫</button>
+    <button id="termEnter"  aria-label="enter"  class="keycap long">⏎</button>
+  </div>
+</div>
   <div id="blocklyDiv"></div>
+  
 <script>
   // ====== 建立 Blockly 工作區 ======
   const toolbox = {
@@ -116,12 +253,12 @@ kbd {
       maxScale: 1.0,    // 不可放大
       minScale: 1.0     // 不可縮小
     },
-    trashcan: true
+    trashcan: false
   });
 
 
 // ====== 基本設定 ======
-const COLS = 20, ROWS = 15  , CELL = 40;
+const COLS = 20, ROWS = 15  , CELL = 30;
 const STAGE_W = COLS * CELL, STAGE_H = ROWS * CELL;
 
 const COLOR_BG = '#444';
@@ -142,8 +279,8 @@ const cop   = { id:'cop',   x:8, y:1, r:0, emoji:COP,   color:'#f0f' };
 // Konva 圖層
 const stage   = new Konva.Stage({ container:'stage', width:STAGE_W, height:STAGE_H });
 const gridL   = new Konva.Layer({ listening:false });
-const propsL  = new Konva.Layer();
-const unitsL  = new Konva.Layer();
+const propsL  = new Konva.Layer({ listening:false });
+const unitsL  = new Konva.Layer({ listening:false });
 const sensorL = new Konva.Layer({ listening:false }); // 專畫 FOV 外框
 const cursorL = new Konva.Layer({ listening:false }); // hoverRect / selectRect
 const darkL   = new Konva.Layer({ listening:false });
@@ -731,22 +868,66 @@ window.addEventListener('keydown', (e)=>{
   const k = e.key.toLowerCase();
   let moved = false;
 
-// === 忍者（方向鍵控制） ===
+// // === 忍者（方向鍵控制） ===
+// if (e.key === 'ArrowLeft') {
+//   ninja.r = 4;                     // W (左)
+//   tryMove(ninja, -1, 0); moved = true;
+// }
+// else if (e.key === 'ArrowRight') {
+//   ninja.r = 0;                     // E (右)
+//   tryMove(ninja,  1, 0); moved = true;
+// }
+// else if (e.key === 'ArrowUp') {
+//   ninja.r = 6;                     // N (上)
+//   tryMove(ninja,  0,-1); moved = true;
+// }
+// else if (e.key === 'ArrowDown') {
+//   ninja.r = 2;                     // S (下)
+//   tryMove(ninja,  0, 1); moved = true;
+// }
+
+// === 忍者（方向鍵控制：先轉向，再移動） ===
 if (e.key === 'ArrowLeft') {
-  ninja.r = 4;                     // W (左)
-  tryMove(ninja, -1, 0); moved = true;
+  const targetR = 4;               // W (左)
+  if (ninja.r !== targetR) {
+    // 第一次按：只轉頭，不移動
+    ninja.r = targetR;
+    moved = true;                  // 轉頭也算一個行動
+  } else {
+    // 已經面向左邊：這次才嘗試往左移動一格
+    tryMove(ninja, -1, 0);
+    moved = true;
+  }
 }
 else if (e.key === 'ArrowRight') {
-  ninja.r = 0;                     // E (右)
-  tryMove(ninja,  1, 0); moved = true;
+  const targetR = 0;               // E (右)
+  if (ninja.r !== targetR) {
+    ninja.r = targetR;
+    moved = true;
+  } else {
+    tryMove(ninja,  1, 0);
+    moved = true;
+  }
 }
 else if (e.key === 'ArrowUp') {
-  ninja.r = 6;                     // N (上)
-  tryMove(ninja,  0,-1); moved = true;
+  const targetR = 6;               // N (上)
+  if (ninja.r !== targetR) {
+    ninja.r = targetR;
+    moved = true;
+  } else {
+    tryMove(ninja,  0, -1);
+    moved = true;
+  }
 }
 else if (e.key === 'ArrowDown') {
-  ninja.r = 2;                     // S (下)
-  tryMove(ninja,  0, 1); moved = true;
+  const targetR = 2;               // S (下)
+  if (ninja.r !== targetR) {
+    ninja.r = targetR;
+    moved = true;
+  } else {
+    tryMove(ninja,  0, 1);
+    moved = true;
+  }
 }
 
 // === 守衛（WASD 控制） ===
