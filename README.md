@@ -4,6 +4,8 @@
 
 > 「在數位陰影之中，演算法與意志決定誰能掌控協定。」
 
+🕹️ **[立即試玩 Live Demo](https://shadow-protocol-bice.vercel.app/)**
+
 ---
 
 ## 🎮 遊戲簡介
